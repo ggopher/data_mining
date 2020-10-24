@@ -32,12 +32,13 @@ from urllib.parse import urlparse
 import time
 import json
 from sqlalchemy import create_engine
+from sqlalchemy.orm import query
 from sqlalchemy.orm import sessionmaker
 import models
 from dateutil import parser as date_parser
 
 #Заходим на страницу, получаем список постов, заходим на следующую и так далее
-class MagnitParser:
+class GBParser:
     _headers = {
         'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0",
     }
@@ -57,7 +58,6 @@ class MagnitParser:
         return BeautifulSoup(response.text, 'lxml')
 
     def get_links(self):
-        #Здесь можно переписать, в один заход.
         soup = self._get_soup(self.start_url)
         print(f"Collecting posts url's on {self.start_url}")
         posts_links = []
@@ -77,6 +77,45 @@ class MagnitParser:
         return posts_links
         # print(1)
 
+    def comment_parse(self, comments_id: str) -> list:
+        """
+        Comment parse
+        :param comments_id: str
+        :return: list
+        """
+        params = {
+            'commentable_type': 'Post',
+            'commentable_id': comments_id,
+            'order': 'desc'
+        }
+        headers = self._headers
+        headers.update({'Range': '0-600'})
+        comments_url ="https://geekbrains.ru/api/v2/comments"
+        response = requests.get(comments_url, params=params, headers=headers)
+        comments_data: list = response.json()
+
+        def parse_comments_fully(data: list) -> list:
+            """
+            getting comments
+            :param data: list
+            :return: list
+            """
+            parsed_comments = []
+            for itm in data:
+                comment = [itm['comment']['user']['full_name'],
+                           itm['comment']['user']['url'],
+                           itm['comment']['body'],
+                           parse_comments_fully(itm['comment']['children']),
+                           ]
+                parsed_comments.append(comment)
+            return parsed_comments
+
+        a = parse_comments_fully(comments_data)
+        print(1)
+        return a
+
+
+
     def parse(self):
         posts_links = self.get_links()
         print(posts_links)
@@ -84,7 +123,6 @@ class MagnitParser:
         for post_url in posts_links:
             post_soup = self._get_soup(post_url)
             post_data = self.get_post_structure(post_soup, post_url)
-            post_data['comments'] = self.get_post_comments(post_soup)
 
             for i, key in post_data.items():
                 print(f'{i}: {key}')
@@ -98,14 +136,15 @@ class MagnitParser:
 
     def get_post_structure(self, post_soup, url):
         print('POST PARSING BEGIN')
-
+        comment_parse_activate = self.comment_parse(post_soup.find('comments')['commentable-id'])
         post_template = {
             'post_title': lambda soup: soup.find('h1', attrs={'class': 'blogpost-title text-left text-dark m-t-sm'}).text
             ,'post_publish_date': lambda soup: date_parser.parse(soup.find('time', attrs={'class': 'text-md text-muted m-r-md'})['datetime'])
             ,'image_url': lambda soup: soup.find('img')['src']
             ,'author': lambda soup: soup.find('div', attrs={'itemprop': 'author'}).text
             ,'author_url': lambda soup: f"{self._root_url}{soup.find('div', attrs={'itemprop': 'author'}).parent.attrs.get('href')}"
-            ,'post_tags': lambda soup: [tag.text for tag in soup.find_all('a', attrs={'class': 'small'})]
+            , 'post_tags': lambda soup: [(tag.text, f"{self._root_url}{tag['href']}") for tag in soup.find_all('a', attrs={'class': 'small'})]
+            ,'comments': lambda _: comment_parse_activate
         }
         post = {'url': url}
         for key, value in post_template.items():
@@ -147,34 +186,6 @@ class MagnitParser:
         'by_community_manager': False}
 
         """
-        comments_api_url = "https://geekbrains.ru/api/v2/comments"
-        comments_total = int(post_soup.find('comments').attrs.get('total-comments-count'))
-
-        headers = {
-            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0",
-            'Range': f"0-{comments_total}",
-        }
-
-        commentable_id = int(post_soup.find('comments').attrs.get('commentable-id'))
-
-        params = {
-            'commentable_type': 'Post',
-            'commentable_id': commentable_id,
-            'order': 'desc',
-        }
-
-        response = requests.get(comments_api_url, headers=headers, params=params)
-        json_comments_response = json.loads(response.text)
-        comments = []
-        #Рекурсию не делаем, т.к. по тз надо только имя, да текст комментария
-        for json_comment in json_comments_response:
-            comment = {
-                'Comment_author_url': json_comment.get('comment').get('user').get('url'),
-                'Comment_author': json_comment.get('comment').get('user').get('full_name'),
-                'Comment_text': json_comment.get('comment').get('body'),
-            }
-            comments.append(comment)
-        return comments
 
 
     def db_init(self):
@@ -184,7 +195,7 @@ class MagnitParser:
         self.db = SessionMaker()
 
     def db_close(self):
-        db.close()
+        self.db.close()
         pass
 
     def commit_to_db(self, post_data: dict):
@@ -230,15 +241,40 @@ class MagnitParser:
         posts = relationship('Post', secondary=tag_post)
         """
 
+
         author = models.Author(name=post_data['author'], url=post_data['author_url'])
-        # post = models.Post(url=post_data['url'], title=post_data['post_title'],  publish_date=post_data['post_publish_date'], img_url=post_data['image_url'], author=author)
-        # self.db.add(post)
+        author_check = self.db.query(models.Author).filter(models.Author.url == author.url).first()
+        if author_check:
+            author = author_check
         self.db.add(author)
+
+        post = models.Post(url=post_data['url'], title=post_data['post_title'],  publish_date=post_data['post_publish_date'], img_url=post_data['image_url'], author=author)
+        self.db.add(post)
+
+        tag = models.Tag(name=post_data['post_tags'][0][0], url=post_data['post_tags'][0][1], posts=[post])
+        tag_check = self.db.query(models.Tag).filter(models.Tag.url == tag.url).first()
+        if tag_check:
+            tag = tag_check
+        self.db.add(tag)
+        post.tag.append(tag)
+
+
+
+
+        for itm in post_data['comments']:
+            author = models.Author(name=itm[0], url=itm[1])
+            author_check = self.db.query(models.Author).filter(models.Author.url == author.url).first()
+            if author_check:
+                author = author_check
+            self.db.add(author)
+            comment = models.Comment(text=itm[2], author=author, posts=post)
+            self.db.add(comment)
         self.db.commit()
 
 
 
+
 if __name__ == '__main__':
-    url = 'https://geekbrains.ru/posts?pages=56'
-    parser = MagnitParser(url)
+    url = 'https://geekbrains.ru/posts'
+    parser = GBParser(url)
     parser.parse()

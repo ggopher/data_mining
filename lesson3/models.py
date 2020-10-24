@@ -37,6 +37,7 @@ class Post(Base):
     author_id = Column(Integer, ForeignKey('author.id'))
     author = relationship("Author", back_populates='posts')
     tag = relationship('Tag', secondary=tag_post, back_populates='posts')
+    comments = relationship('Comment')
 
 
 class Author(Base):
@@ -45,6 +46,7 @@ class Author(Base):
     name = Column(String, unique=False, nullable=False)
     url = Column(String, unique=True, nullable=False)
     posts = relationship("Post")
+    comments = relationship('Comment')
 
 
 class Tag(Base):
@@ -54,9 +56,11 @@ class Tag(Base):
     url = Column(String, unique=True, nullable=False)
     posts = relationship('Post', secondary=tag_post)
 
-# class Comment(Base):
-#     __tablename__ = 'comment'
-#     id = Column(Integer, autoincrement=True, primary_key=True)
-#     name = Column(String, unique=False, nullable=False)
-#     url = Column(String, unique=True, nullable=False)
-#     posts = relationship("Post")
+class Comment(Base):
+    __tablename__ = 'comment'
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    text = Column(String, unique=False, nullable=False)
+    author_id = Column(Integer, ForeignKey('author.id'))
+    post_id = Column(Integer, ForeignKey('post.id'))
+    posts = relationship('Post', back_populates='comments')
+    author = relationship('Author', back_populates='comments')
