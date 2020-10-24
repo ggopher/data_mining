@@ -43,7 +43,7 @@ class GBParser:
         'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0",
     }
     _params = {
-        'geo': 'moskva',
+        # 'geo': 'moskva',
     }
 
     def __init__(self, start_url):
@@ -61,19 +61,23 @@ class GBParser:
         soup = self._get_soup(self.start_url)
         print(f"Collecting posts url's on {self.start_url}")
         posts_links = []
+        pages_gone = 60
         page_count = int(soup.find('ul', attrs={'class': 'gb__pagination'}).contents[-2].text)
-        # for i in range(page_count-1):         # DO UNTILL immitation
-        for i in range(1):  # DO UNTILL immitation
+        print(f'Total pages: {page_count}')
+        while pages_gone <= page_count:
             time.sleep(0.1)
             posts_list_div = soup.find('div', attrs={'class': 'post-items col-md-8 col-sm-12 col-xs-12'})
             for post_link in posts_list_div.findChildren('a', attrs={'class': 'post-item__title h3 search_text'}):
                 posts_links.append(self._root_url + post_link.attrs.get('href'))
+
             #Pagination block
-            next_page = self._root_url + soup.find_all("a", attrs={'rel': 'next'})[-1].attrs.get('href')
+            # next_page = self._root_url + soup.find_all("a", attrs={'rel': 'next'})[-2].attrs.get('href')
+            next_page = f"{self._root_url}/posts?page={pages_gone}"
+            print(next_page)
             soup = self._get_soup(next_page)
             print(f"Collecting posts url's on {next_page}")
                 # print(next_page + 'parsed')
-        #   print(i)
+            pages_gone += 1
         return posts_links
         # print(1)
 
