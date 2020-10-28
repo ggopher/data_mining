@@ -2,7 +2,7 @@ import scrapy
 from pymongo import MongoClient
 
 class YoulaSpider(scrapy.Spider):
-    name = 'youla'
+    name = 'youla1'
     allowed_domains = ['auto.youla.ru']
     start_urls = ['https://auto.youla.ru/']
     xpath = {
@@ -30,7 +30,7 @@ class YoulaSpider(scrapy.Spider):
         attrs_labels = response.xpath('//div[contains(@class, "AdvertSpecs_row__")]//div[contains(@class, "AdvertSpecs_label__")]//text()').extract()
         attrs_data = response.xpath('//div[contains(@class, "AdvertSpecs_row__")]//div[contains(@class, "AdvertSpecs_data__")]//text()').extract()
         attrs = dict(zip(attrs_labels, attrs_data))
-        text = response.xpath('//div[contains(@class, "AdvertCard_descriptionInner")]/text()').extract()
+        text = response.xpath('//div[contains(@class, "AdvertCard_descriptionInner")]/text()').extract_first()
 
 
         #https: // auto.youla.ru / api / profile / youla?userId = 19268359
