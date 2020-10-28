@@ -31,10 +31,13 @@ class YoulaSpider(scrapy.Spider):
         attrs_data = response.xpath('//div[contains(@class, "AdvertSpecs_row__")]//div[contains(@class, "AdvertSpecs_data__")]//text()').extract()
         attrs = dict(zip(attrs_labels, attrs_data))
         text = response.xpath('//div[contains(@class, "AdvertCard_descriptionInner")]/text()').extract()
-        #author = response.xpath('//div[contains(@class, "PhotoGallery_block")]//img/@src').extract()
-        #phone = response.xpath('//div[contains(@class, "PhotoGallery_block")]//img/@src').extract()
+
+
+        #https: // auto.youla.ru / api / profile / youla?userId = 19268359
+        #Only works for mobile devices.
+        #author = response.xpath('').extract()
+        #phone = response.xpath(').extract()
 
         # процедура соранения в БД
         collection = self.db_client['parse_10'][self.name]
-        collection.insert_one({'title': name, 'img': images, 'attrs:' attrs, 'text': texts})
-//*[@id="page-body"]/div/div[3]/div[2]/div[1]/div
+        collection.insert_one({'title': name, 'img': images, 'attrs': attrs, 'text': text})
