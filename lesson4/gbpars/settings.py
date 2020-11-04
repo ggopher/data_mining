@@ -13,6 +13,9 @@ BOT_NAME = 'gbpars'
 # LOG_ENABLE = False
 # LOG_LEVEL = 'DEBUG'
 
+
+IMAGES_STORE = 'image'
+
 SPIDER_MODULES = ['gbpars.spiders']
 NEWSPIDER_MODULE = 'gbpars.spiders'
 
