@@ -1,5 +1,4 @@
 import scrapy
-from pymongo import MongoClient
 
 class YoulaSpider(scrapy.Spider):
     name = 'youla1'
@@ -11,7 +10,6 @@ class YoulaSpider(scrapy.Spider):
         ,'pagination': '//div[contains(@class, "Paginator_block")]/a/@href'
         ,
     }
-    db_client = MongoClient()
 
     def parse(self, response, **kwargs):
         for url in response.xpath(self.xpath['brands']):
@@ -25,19 +23,13 @@ class YoulaSpider(scrapy.Spider):
             yield response.follow(url, callback=self.ads_parse)
 
     def ads_parse(self, response, **kwargs):
-        name = response.xpath('//div[contains(@class, "AdvertCard_advertTitle")]/text()').extract_first()
-        images = response.xpath('//div[contains(@class, "PhotoGallery_block")]//img/@src').extract()
-        attrs_labels = response.xpath('//div[contains(@class, "AdvertSpecs_row__")]//div[contains(@class, "AdvertSpecs_label__")]//text()').extract()
-        attrs_data = response.xpath('//div[contains(@class, "AdvertSpecs_row__")]//div[contains(@class, "AdvertSpecs_data__")]//text()').extract()
-        attrs = dict(zip(attrs_labels, attrs_data))
-        text = response.xpath('//div[contains(@class, "AdvertCard_descriptionInner")]/text()').extract_first()
-
-
-        #https: // auto.youla.ru / api / profile / youla?userId = 19268359
-        #Only works for mobile devices.
-        #author = response.xpath('').extract()
-        #phone = response.xpath(').extract()
-
-        # процедура соранения в БД
-        collection = self.db_client['parse_10'][self.name]
-        collection.insert_one({'title': name, 'img': images, 'attrs': attrs, 'text': text})
+        loader = YoulaAutoLoader(response=response)
+        loader.add_xpath('title', '//div[contains(@class, "AdvertCard_advertTitle")]/text()')
+        loader.add_xpath('img', '//div[contains(@class, "PhotoGallery_block")]//img/@src')
+        loader.add_xpath('owner', '//script[contains(text(), "window.transitState =")]/text()')
+        loader.add_xpath('phone_num', '//script[contains(text(), "window.transitState =")]/text()')
+        loader.add_value('url', response.url)
+        loader.add_value('features', '//div[contains(@class, "AdvertCard_specs")]'
+                                      '//div[contains(@class, "AdvertSpecs")]')
+        loader.add_xpath('description', '//div[contains(@class, "AdvertCard_descriptionInner")]/text()')
+        yield loader.load_item()
