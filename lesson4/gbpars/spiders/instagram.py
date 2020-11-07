@@ -7,7 +7,7 @@ class InstagramSpider(scrapy.Spider):
     allowed_domains = ['www.instagram.com']
     start_urls = ['https://www.instagram.com/']
     login_url = 'https://www.instagram.com/accounts/login/ajax/'
-    api_url = '/graphql/query/'
+    pagination_url = '/graphql/query/'
     query_hash = {
         'posts': '56a7068fea504063273cc2120ffd54f3',
         'tag_posts': "9b498c08113f1e09617a1703c22b2f32",
@@ -39,7 +39,6 @@ class InstagramSpider(scrapy.Spider):
 
     def tag_parse(self, response):
         tag = self.js_data_extract(response)['entry_data']['TagPage'][0]['graphql']['hashtag']
-
         yield InstagramTagsItm(
             date_parse=dt.datetime.utcnow(),
             data={
@@ -50,7 +49,7 @@ class InstagramSpider(scrapy.Spider):
         )
         yield from self.get_tag_posts(tag, response)
 
-    def tag_api_parse(self, response):
+    def pagination_parse(self, response):
         yield from self.get_tag_posts(response.json()['data']['hashtag'], response)
 
     def get_tag_posts(self, tag, response):
@@ -60,10 +59,10 @@ class InstagramSpider(scrapy.Spider):
                 'first': 100,
                 'after': tag['edge_hashtag_to_media']['page_info']['end_cursor'],
             }
-            url = f'{self.api_url}?query_hash={self.query_hash["tag_posts"]}&variables={json.dumps(variables)}'
+            url = f'{self.pagination_url}?query_hash={self.query_hash["tag_posts"]}&variables={json.dumps(variables)}'
             yield response.follow(
                 url,
-                callback=self.tag_api_parse,
+                callback=self.pagination_parse,
             )
 
         yield from self.get_post_item(tag['edge_hashtag_to_media']['edges'])
