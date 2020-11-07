@@ -105,10 +105,6 @@ class GbparsDownloaderMiddleware:
 
 
 
-
-
-
-
 class Retry429Middleware(RetryMiddleware):
     def __init__(self, crawler):
         super().__init__(crawler.settings)
