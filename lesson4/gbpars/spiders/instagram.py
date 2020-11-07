@@ -60,9 +60,7 @@ class InstagramSpider(scrapy.Spider):
                 'after': tag['edge_hashtag_to_media']['page_info']['end_cursor'],
             }
             url = f'{self.pagination_url}?query_hash={self.query_hash["tag_posts"]}&variables={json.dumps(variables)}'
-            yield response.follow(
-                url,
-                callback=self.pagination_parse,
+            yield response.follow(url, callback=self.pagination_parse,
             )
 
         yield from self.get_post_item(tag['edge_hashtag_to_media']['edges'])
