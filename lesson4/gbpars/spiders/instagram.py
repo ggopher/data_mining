@@ -4,8 +4,8 @@ import json
 class InstagramSpider(scrapy.Spider):
     name = 'instagram'
     allowed_domains = ['www.instagram.com']
-    start_urls = ['http://www.instagram.com/']
-    login_url = 'https://www.instagram.com/login/account/ajax'
+    start_urls = ['https://www.instagram.com/']
+    login_url = 'https://www.instagram.com/accounts/login/ajax/'
     def __init__(self, login, enc_password, *args, **kwargs):
         self.tags = ['python']
         self.login = login
@@ -15,15 +15,17 @@ class InstagramSpider(scrapy.Spider):
     def parse(self, response, **kwargs):
         try:
             js_data = self.js_data_extract(response)
+            a = js_data['config']['csrf_token']
+            print(1)
             yield scrapy.FormRequest(
-                self.login_url
-                ,callback=self.parse()
-                ,method='POST'
-                ,formdata={
-                    'username': self.login
-                    ,'enc_password': self.enc_passwd
-                ,}
-                ,headers={'X_CSRFToken': js_data['config']['csrf_token']}
+                self.login_url,
+                callback=self.parse,
+                method='POST',
+                formdata={
+                    'username': self.login,
+                    'enc_password': self.enc_passwd,
+                },
+                headers={'X_CSRFToken': js_data['config']['csrf_token']}
             )
         except AttributeError as e:
             if response.json().get('authentificated'):

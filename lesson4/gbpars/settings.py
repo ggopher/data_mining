@@ -10,8 +10,8 @@ from fake_useragent import UserAgent
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 BOT_NAME = 'gbpars'
-# LOG_ENABLE = False
-# LOG_LEVEL = 'DEBUG'
+LOG_ENABLE = True
+LOG_LEVEL = 'DEBUG'
 
 
 IMAGES_STORE = 'image'
