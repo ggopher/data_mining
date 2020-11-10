@@ -49,6 +49,7 @@ class InstagramSpider(scrapy.Spider):
         )
         yield from self.get_tag_posts(tag, response)
 
+
     def pagination_parse(self, response):
         yield from self.get_tag_posts(response.json()['data']['hashtag'], response)
 
